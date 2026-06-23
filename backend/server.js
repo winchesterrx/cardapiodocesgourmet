@@ -16,9 +16,30 @@ app.use(express.json({ limit: '50mb' }));
 app.use('/uploads', express.static('uploads'));
 
 // Helper para salvar imagem base64
-const saveBase64Image = (base64Str) => {
+const saveBase64Image = async (base64Str) => {
   if (!base64Str || !base64Str.startsWith('data:image')) return base64Str; // Já é URL ou inválido
   
+  const IMGBB_API_KEY = process.env.IMGBB_API_KEY;
+
+  if (IMGBB_API_KEY) {
+    try {
+      const base64Data = base64Str.split(',')[1];
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ image: base64Data })
+      });
+      const result = await response.json();
+      if (result.success) {
+        return result.data.url;
+      }
+      console.error('ImgBB Upload Error:', result);
+    } catch (err) {
+      console.error('Falha no upload para o ImgBB:', err);
+    }
+  }
+
+  // Fallback para upload local (se não tiver chave do ImgBB)
   const matches = base64Str.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
   if (!matches || matches.length !== 3) return base64Str;
   
@@ -213,8 +234,8 @@ app.post('/api/products', async (req, res) => {
     await connection.beginTransaction();
     
     // Processa e salva as imagens
-    const savedImages = (images || []).map(saveBase64Image);
-    const mainImage = savedImages.length > 0 ? savedImages[0] : (image ? saveBase64Image(image) : null);
+    const savedImages = await Promise.all((images || []).map(saveBase64Image));
+    const mainImage = savedImages.length > 0 ? savedImages[0] : (image ? await saveBase64Image(image) : null);
 
     const formattedPromoExpiry = promoExpiry ? new Date(promoExpiry).toISOString().slice(0, 19).replace('T', ' ') : null;
 
@@ -252,8 +273,8 @@ app.put('/api/products/:id', async (req, res) => {
     await connection.beginTransaction();
     
     // Processa e salva as novas imagens (mantém as que já são URLs)
-    const savedImages = (images || []).map(saveBase64Image);
-    const mainImage = savedImages.length > 0 ? savedImages[0] : (image ? saveBase64Image(image) : null);
+    const savedImages = await Promise.all((images || []).map(saveBase64Image));
+    const mainImage = savedImages.length > 0 ? savedImages[0] : (image ? await saveBase64Image(image) : null);
 
     const formattedPromoExpiry = promoExpiry ? new Date(promoExpiry).toISOString().slice(0, 19).replace('T', ' ') : null;
 
