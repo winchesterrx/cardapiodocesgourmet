@@ -28,7 +28,7 @@ const Index = () => {
   );
 
   return (
-    <div className="min-h-screen bg-background pb-[72px] lg:pb-0 w-full overflow-x-hidden">
+    <div className="min-h-screen bg-background pb-[150px] lg:pb-0 w-full overflow-x-hidden">
       <HeroHeader onCartOpen={() => setShowCheckout(true)} />
       
       <div className="max-w-7xl mx-auto px-0 sm:px-6 lg:px-8">

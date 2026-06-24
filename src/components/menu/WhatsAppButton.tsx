@@ -11,8 +11,8 @@ export default function WhatsAppButton() {
   const { itemCount } = useCart();
   
   const bottomPosition = itemCount > 0 
-    ? "bottom-[calc(142px+env(safe-area-inset-bottom))]" 
-    : "bottom-[calc(78px+env(safe-area-inset-bottom))]";
+    ? "calc(142px + env(safe-area-inset-bottom))" 
+    : "calc(78px + env(safe-area-inset-bottom))";
 
   return (
     <motion.a
@@ -25,7 +25,8 @@ export default function WhatsAppButton() {
       transition={{ delay: 1, type: "spring", stiffness: 200 }}
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
-      className={`fixed ${bottomPosition} right-4 z-50 w-14 h-14 rounded-full bg-[hsl(142,70%,45%)] text-white flex items-center justify-center shadow-elevated`}
+      className="fixed right-4 z-50 w-14 h-14 rounded-full bg-[hsl(142,70%,45%)] text-white flex items-center justify-center shadow-elevated"
+      style={{ bottom: bottomPosition }}
     >
       <MessageCircle size={28} fill="white" strokeWidth={0} />
     </motion.a>
