@@ -44,7 +44,7 @@ export default function Fidelidade() {
   const progresso = ((pontos || 0) % ptsNeeded) / ptsNeeded * 100;
 
   return (
-    <div className="min-h-screen bg-background pb-[72px] lg:pb-0">
+    <div className="min-h-screen bg-background pb-[72px] lg:pb-0 w-full overflow-x-hidden">
       <div className="hidden lg:flex items-center gap-4 bg-card border-b border-border px-8 py-4 sticky top-0 z-30">
         <button onClick={() => navigate("/")} className="p-2 -ml-2 rounded-full hover:bg-muted transition-colors">
           <ChevronLeft size={24} />

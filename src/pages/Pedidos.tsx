@@ -51,7 +51,7 @@ export default function Pedidos() {
   };
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-24 w-full overflow-x-hidden">
       <div className="bg-primary text-primary-foreground px-4 pt-12 pb-6">
         <div className="flex items-center gap-3 mb-2">
           <button onClick={() => navigate("/")} className="p-1 rounded-full active:bg-primary-foreground/20">
