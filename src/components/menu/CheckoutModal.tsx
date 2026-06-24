@@ -128,11 +128,18 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     };
 
     // Save order via API
+    let realOrderNumber = orderNumber;
     try {
       const response = await addOrderAsync(order);
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.details || "Erro desconhecido ao salvar o pedido.");
+      }
+      const resData = await response.json();
+      if (resData.orderNumber) {
+        realOrderNumber = Number(resData.orderNumber);
+        // Sync local storage counter to prevent starting from 1 next time
+        localStorage.setItem("digitalmenu_order_counter", realOrderNumber.toString());
       }
     } catch (error: any) {
       console.error("Erro ao salvar o pedido no banco", error);
@@ -164,7 +171,7 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     if (consume === "entrega") locationInfo = `\n📍 Endereço: ${address}`;
     else if (consume === "mesa") locationInfo = `\n🪑 Mesa: ${mesa}`;
 
-    let message = `🍽️ *NOVO PEDIDO #${orderNumber} - Bom Gosto Lanches*\n\n${itemLines}\n\n`;
+    let message = `🍽️ *NOVO PEDIDO #${realOrderNumber} - Bom Gosto Lanches*\n\n${itemLines}\n\n`;
     if (discountValue > 0) {
       message += `🎟️ Desconto Fidelidade: - R$ ${discountValue.toFixed(2)}\n`;
     }
@@ -427,7 +434,7 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
           </div>
         )}
 
-        <div className="text-center py-2 text-[10px] text-muted-foreground border-t border-border">
+        <div className="text-center py-2 pb-[calc(8px+env(safe-area-inset-bottom))] text-[10px] text-muted-foreground border-t border-border bg-card">
           Desenvolvido por Gabriel Silva
         </div>
       </motion.div>

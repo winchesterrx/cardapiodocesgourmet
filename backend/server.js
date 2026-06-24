@@ -434,14 +434,17 @@ app.post('/api/orders', async (req, res) => {
       customerWhatsApp, customerCPF, status, total, items, timeline,
       usedPoints, discountAmount
     } = req.body;
-
     const queryOrder = `
-      INSERT INTO orders (id, order_number, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
-    const [resultOrder] = await connection.query(queryOrder, [
-      id, number, total, consumeType, paymentMethod, address, mesa, customerWhatsApp, customerCPF, status
+    await connection.query(queryOrder, [
+      id, total, consumeType, paymentMethod, address, mesa, customerWhatsApp, customerCPF, status
     ]);
+
+    // Busca o order_number gerado pelo AUTO_INCREMENT
+    const [[insertedOrder]] = await connection.query('SELECT order_number FROM orders WHERE id = ?', [id]);
+    const generatedOrderNumber = insertedOrder ? insertedOrder.order_number : 1;
 
     // itens
     for (const item of items) {
@@ -506,7 +509,7 @@ app.post('/api/orders', async (req, res) => {
     }
 
     await connection.commit();
-    res.status(201).json({ message: 'Pedido criado com sucesso' });
+    res.status(201).json({ message: 'Pedido criado com sucesso', orderNumber: generatedOrderNumber });
   } catch (error) {
     try { await connection.rollback(); } catch (err) {}
     console.error(error);

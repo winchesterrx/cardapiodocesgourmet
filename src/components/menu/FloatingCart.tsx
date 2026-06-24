@@ -17,7 +17,7 @@ export default function FloatingCart({ onOpen }: Props) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           onClick={onOpen}
-          className="fixed bottom-[68px] left-3 right-3 bg-primary text-primary-foreground rounded-2xl py-3.5 px-4 shadow-elevated flex items-center justify-between z-40 active:scale-[0.98] transition-transform"
+          className="fixed bottom-[calc(68px+env(safe-area-inset-bottom))] left-3 right-3 bg-primary text-primary-foreground rounded-2xl py-3.5 px-4 shadow-elevated flex items-center justify-between z-40 active:scale-[0.98] transition-transform"
         >
           <div className="flex items-center gap-2.5">
             <div className="relative">
