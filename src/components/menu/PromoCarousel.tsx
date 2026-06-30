@@ -53,6 +53,11 @@ export default function PromoCarousel({ products, onSelect }: Props) {
                   <span className="text-[10px] font-bold text-primary uppercase tracking-wider">
                     Promoção
                   </span>
+                  {promos[current].isMadeToOrder && (
+                    <span className="bg-amber-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded ml-1 uppercase">
+                      Sob Encomenda
+                    </span>
+                  )}
                 </div>
                 {promos[current].promoExpiry && (
                   <PromoTimer expiry={promos[current].promoExpiry!} />

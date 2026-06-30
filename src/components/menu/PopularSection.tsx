@@ -65,10 +65,16 @@ export default function PopularSection({ products, onSelect }: Props) {
                   <div className="w-full h-full bg-muted flex items-center justify-center text-3xl">🍽️</div>
                 )}
               </div>
-              <span className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
-                <Star size={9} className="fill-current" />
-                Mais Pedido
-              </span>
+              {p.isMadeToOrder ? (
+                <span className="absolute top-1.5 left-1.5 bg-amber-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wide shadow-sm">
+                  Sob Encomenda
+                </span>
+              ) : (
+                <span className="absolute top-1.5 left-1.5 bg-accent text-accent-foreground text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-0.5">
+                  <Star size={9} className="fill-current" />
+                  Mais Pedido
+                </span>
+              )}
             </div>
 
             <div className="p-2.5">
@@ -83,9 +89,13 @@ export default function PopularSection({ products, onSelect }: Props) {
                     e.stopPropagation();
                     onSelect(p);
                   }}
-                  className="bg-accent text-accent-foreground text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform"
+                  className={`text-[10px] font-bold px-2.5 py-1 rounded-full active:scale-95 transition-transform ${
+                    p.isMadeToOrder
+                      ? "bg-amber-500 text-white"
+                      : "bg-accent text-accent-foreground"
+                  }`}
                 >
-                  + Pedir
+                  {p.isMadeToOrder ? "Encomendar" : "+ Pedir"}
                 </button>
               </div>
             </div>
