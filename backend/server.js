@@ -368,7 +368,8 @@ app.get('/api/store/settings', async (req, res) => {
       opening_time: "10:00",
       closing_time: "22:00",
       delivery_fee: 0.00,
-      delivery_info_text: "Entregas apenas depois das 14:00"
+      delivery_info_text: "Entregas apenas depois das 14:00",
+      is_open: 1
     });
   } catch (error) {
     console.error(error);
@@ -380,19 +381,20 @@ app.put('/api/store/settings', async (req, res) => {
   const { 
     has_delivery, has_table, has_pickup, 
     accepts_pix, accepts_cash, accepts_card, 
-    opening_time, closing_time, delivery_fee, delivery_info_text 
+    opening_time, closing_time, delivery_fee, delivery_info_text, is_open
   } = req.body;
   try {
     await db.query(
       `UPDATE store_settings SET 
         has_delivery = ?, has_table = ?, has_pickup = ?, 
         accepts_pix = ?, accepts_cash = ?, accepts_card = ?, 
-        opening_time = ?, closing_time = ?, delivery_fee = ?, delivery_info_text = ? 
+        opening_time = ?, closing_time = ?, delivery_fee = ?, delivery_info_text = ?, is_open = ? 
        WHERE id = 1`,
       [
         has_delivery ? 1 : 0, has_table ? 1 : 0, has_pickup ? 1 : 0,
         accepts_pix ? 1 : 0, accepts_cash ? 1 : 0, accepts_card ? 1 : 0,
-        opening_time, closing_time, delivery_fee, delivery_info_text || "Entregas apenas depois das 14:00"
+        opening_time, closing_time, delivery_fee, delivery_info_text || "Entregas apenas depois das 14:00",
+        is_open !== undefined ? (is_open ? 1 : 0) : 1
       ]
     );
     res.json({ message: 'Configurações atualizadas com sucesso' });
@@ -464,7 +466,9 @@ app.get('/api/orders', async (req, res) => {
         timeline: oTimeline,
         customerName: o.customer_name || '',
         changeNeededFor: o.change_needed_for ? Number(o.change_needed_for) : undefined,
-        deliveryFee: o.delivery_fee ? Number(o.delivery_fee) : 0
+        deliveryFee: o.delivery_fee ? Number(o.delivery_fee) : 0,
+        couponId: o.coupon_id || null,
+        discountAmount: o.discount_amount ? Number(o.discount_amount) : 0
       };
     });
 
@@ -484,14 +488,22 @@ app.post('/api/orders', async (req, res) => {
     const { 
       id, number, consumeType, paymentMethod, address, mesa, 
       customerWhatsApp, customerCPF, status, total, items, timeline,
-      usedPoints, discountAmount, customerName, changeNeededFor, deliveryFee
+      usedPoints, discountAmount, customerName, changeNeededFor, deliveryFee, couponId
     } = req.body;
+
+    // Verificar se a loja está aberta
+    const [settingsRowsCheck] = await connection.query('SELECT is_open FROM store_settings WHERE id = 1');
+    if (settingsRowsCheck[0] && settingsRowsCheck[0].is_open === 0) {
+      await connection.rollback();
+      return res.status(400).json({ error: 'A loja está fechada no momento.' });
+    }
+
     const queryOrder = `
-      INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status, customer_name, change_needed_for, delivery_fee) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status, customer_name, change_needed_for, delivery_fee, coupon_id, discount_amount) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     await connection.query(queryOrder, [
-      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0
+      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0, couponId || null, discountAmount || 0
     ]);
 
     // Busca o order_number gerado pelo AUTO_INCREMENT
@@ -612,6 +624,73 @@ const initDbSettings = async () => {
   }
 };
 initDbSettings();
+
+// ── Coupons ──
+app.get('/api/coupons', async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT * FROM coupons ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar cupons' });
+  }
+});
+
+app.post('/api/coupons', async (req, res) => {
+  const { code, type, value, is_active } = req.body;
+  try {
+    await db.query('INSERT INTO coupons (code, type, value, is_active) VALUES (?, ?, ?, ?)', [
+      code.toUpperCase(), type, value || 0, is_active ? 1 : 0
+    ]);
+    res.status(201).json({ message: 'Cupom criado' });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Código de cupom já existe' });
+    }
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao criar cupom' });
+  }
+});
+
+app.put('/api/coupons/:id', async (req, res) => {
+  const { code, type, value, is_active } = req.body;
+  try {
+    await db.query('UPDATE coupons SET code = ?, type = ?, value = ?, is_active = ? WHERE id = ?', [
+      code.toUpperCase(), type, value || 0, is_active ? 1 : 0, req.params.id
+    ]);
+    res.json({ message: 'Cupom atualizado' });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ error: 'Código de cupom já existe' });
+    }
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao atualizar cupom' });
+  }
+});
+
+app.delete('/api/coupons/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM coupons WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Cupom deletado' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao deletar cupom' });
+  }
+});
+
+app.post('/api/coupons/validate', async (req, res) => {
+  const { code } = req.body;
+  try {
+    const [rows] = await db.query('SELECT * FROM coupons WHERE code = ?', [code.toUpperCase()]);
+    const coupon = rows[0];
+    if (!coupon) return res.status(404).json({ error: 'Cupom não encontrado' });
+    if (!coupon.is_active) return res.status(400).json({ error: 'Cupom inativo' });
+    res.json(coupon);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao validar cupom' });
+  }
+});
 
 app.listen(PORT, () => {
   console.log(`Backend rodando na porta ${PORT}`);

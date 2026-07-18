@@ -1,0 +1,54 @@
+import db from './db.js';
+
+async function run() {
+  try {
+    console.log("Iniciando migração V2 (Cupons e Loja Aberta/Fechada)...");
+
+    // 1. Criar tabela coupons
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS \`coupons\` (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`code\` VARCHAR(50) NOT NULL UNIQUE,
+        \`type\` ENUM('fixed', 'percentage', 'free_shipping') NOT NULL DEFAULT 'fixed',
+        \`value\` DECIMAL(10,2) DEFAULT 0.00,
+        \`is_active\` TINYINT DEFAULT 1,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+    console.log("Tabela coupons verificada/criada.");
+
+    // 2. Adicionar coluna is_open em store_settings
+    try {
+      await db.query(`ALTER TABLE \`store_settings\` ADD COLUMN \`is_open\` TINYINT DEFAULT 1;`);
+      console.log("Coluna is_open adicionada em store_settings.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("is_open já existe em store_settings.");
+      else throw e;
+    }
+
+    // 3. Adicionar colunas de cupom em orders
+    try {
+      await db.query(`ALTER TABLE \`orders\` ADD COLUMN \`coupon_id\` INT DEFAULT NULL;`);
+      console.log("Coluna coupon_id adicionada em orders.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("coupon_id já existe em orders.");
+      else throw e;
+    }
+
+    try {
+      await db.query(`ALTER TABLE \`orders\` ADD COLUMN \`discount_amount\` DECIMAL(10,2) DEFAULT 0.00;`);
+      console.log("Coluna discount_amount adicionada em orders.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("discount_amount já existe em orders.");
+      else throw e;
+    }
+
+    console.log("Migração V2 concluída com sucesso!");
+    process.exit(0);
+  } catch (error) {
+    console.error("Falha na migração V2:", error);
+    process.exit(1);
+  }
+}
+
+run();

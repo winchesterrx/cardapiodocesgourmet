@@ -2,8 +2,8 @@ import { useState } from "react";
 import { X, Minus, Plus, Trash2, MessageCircle, ChevronRight, ShoppingBag } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/contexts/CartContext";
-import { addOrder, getNextOrderNumber, addOrderAsync, fetchCustomerPoints, fetchLoyaltySettings, fetchStoreSettings } from "@/data/menuData";
-import type { Order, LoyaltySettings, StoreSettings } from "@/data/menuData";
+import { addOrder, getNextOrderNumber, addOrderAsync, fetchCustomerPoints, fetchLoyaltySettings, fetchStoreSettings, validateCoupon } from "@/data/menuData";
+import type { Order, LoyaltySettings, StoreSettings, Coupon } from "@/data/menuData";
 import { useEffect } from "react";
 
 interface Props {
@@ -34,6 +34,12 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
   const [loyaltySettings, setLoyaltySettings] = useState<LoyaltySettings | null>(null);
   const [customerPoints, setCustomerPoints] = useState(0);
   const [usePoints, setUsePoints] = useState(false);
+
+  // Coupon states
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
+  const [couponError, setCouponError] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   useEffect(() => {
     fetchLoyaltySettings().then(setLoyaltySettings);
@@ -109,6 +115,31 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     0
   );
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError("");
+    try {
+      const coupon = await validateCoupon(couponCode);
+      if (coupon) {
+        setAppliedCoupon(coupon);
+        setCouponCode("");
+      } else {
+        setCouponError("Cupom inválido ou expirado");
+        setAppliedCoupon(null);
+      }
+    } catch (e) {
+      setCouponError("Erro ao validar cupom");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null);
+    setCouponError("");
+  };
+
   let discountValue = 0;
   let pointsToUse = 0;
   if (usePoints && loyaltySettings && loyaltySettings.active && customerPoints > 0) {
@@ -118,18 +149,25 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     if (maxMultiplier > 0) {
       discountValue = maxMultiplier * da;
       pointsToUse = maxMultiplier * pfd;
-      if (discountValue > total) {
-        discountValue = total;
-        pointsToUse = Math.ceil((total / da) * pfd);
-      }
     }
   }
 
-  const currentDeliveryFee = consume === "entrega" ? Number(storeSettings?.delivery_fee || 0) : 0;
-  const finalTotal = Math.max(0, total - discountValue) + currentDeliveryFee;
+  let couponDiscount = 0;
+  let isFreeShipping = false;
+  if (appliedCoupon) {
+    if (appliedCoupon.type === 'fixed') couponDiscount = Number(appliedCoupon.value);
+    else if (appliedCoupon.type === 'percentage') couponDiscount = total * (Number(appliedCoupon.value) / 100);
+    else if (appliedCoupon.type === 'free_shipping') isFreeShipping = true;
+  }
+
+  const totalDiscount = discountValue + couponDiscount;
+  const currentDeliveryFee = consume === "entrega" && !isFreeShipping ? Number(storeSettings?.delivery_fee || 0) : 0;
+  const finalTotal = Math.max(0, total - totalDiscount) + currentDeliveryFee;
 
   const isStoreOpen = () => {
     if (!storeSettings) return true;
+    if (storeSettings.is_open === 0) return false;
+
     const now = new Date();
     const currentTime = now.getHours() * 60 + now.getMinutes();
     
@@ -201,6 +239,11 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
     }
 
     if (!isStoreOpen()) {
+      if (storeSettings?.is_open === 0) {
+        alert("A loja está fechada no momento. Não é possível realizar pedidos.");
+        return;
+      }
+      
       const confirmOrder = window.confirm(
         `⚠️ Atenção: O restaurante está fora do horário de atendimento cadastrado (${storeSettings?.opening_time} às ${storeSettings?.closing_time}). Deseja prosseguir mesmo assim?`
       );
@@ -235,7 +278,8 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
       timeline: [{ status: "recebido", timestamp: now }],
       createdAt: now,
       usedPoints: pointsToUse,
-      discountAmount: discountValue,
+      discountAmount: totalDiscount,
+      couponId: appliedCoupon ? appliedCoupon.id : undefined,
       customerName: customerName.trim(),
       changeNeededFor: payment === "dinheiro" && changeOption === "yes" ? parseFloat(changeNeededFor) : undefined,
       deliveryFee: currentDeliveryFee
@@ -568,6 +612,36 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
                 </div>
               )}
 
+              {/* Cupom de Desconto */}
+              <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-3">
+                <h3 className="text-sm font-semibold text-foreground">Cupom de Desconto</h3>
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-2.5 rounded-lg">
+                    <span className="text-sm font-bold text-primary">{appliedCoupon.code} aplicado</span>
+                    <button onClick={removeCoupon} className="text-destructive p-1 rounded-full hover:bg-destructive/10">
+                      <X size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Ex: PROMO10"
+                      className="flex-1 border border-border rounded-xl p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <button
+                      onClick={handleApplyCoupon}
+                      disabled={validatingCoupon}
+                      className="bg-primary text-primary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50"
+                    >
+                      {validatingCoupon ? "Validando..." : "Aplicar"}
+                    </button>
+                  </div>
+                )}
+                {couponError && <p className="text-xs text-destructive mt-1">{couponError}</p>}
+              </div>
+
               {/* Total review before checkout */}
               <div className="border-t border-border pt-4 mt-4 space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground">
@@ -584,6 +658,12 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
                   <div className="flex justify-between text-sm text-primary font-bold">
                     <span>Desconto Fidelidade:</span>
                     <span>- R$ {discountValue.toFixed(2)}</span>
+                  </div>
+                )}
+                {couponDiscount > 0 && (
+                  <div className="flex justify-between text-sm text-primary font-bold">
+                    <span>Cupom ({appliedCoupon?.code}):</span>
+                    <span>- R$ {couponDiscount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-base font-bold text-primary border-t border-border/50 pt-2">

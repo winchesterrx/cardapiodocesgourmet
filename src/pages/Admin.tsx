@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LogIn, LogOut, Plus, Pencil, Trash2, BarChart3, Package, Star, Settings,
   ChevronLeft, LayoutGrid, ListPlus, ClipboardList, CheckCircle2, Clock,
-  Truck, XCircle, Printer, MessageCircle, Eye, Award, X
+  Truck, XCircle, Printer, MessageCircle, Eye, Award, X, Tag
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -13,6 +13,7 @@ import {
   fetchLoyaltySettings, saveLoyaltySettings, fetchStoreSettings, saveStoreSettings
 } from "@/data/menuData";
 import type { Product, Addon, Category, Order, OrderStatus, LoyaltySettings, StoreSettings } from "@/data/menuData";
+import AdminCoupons from "./AdminCoupons";
 
 const availableIcons = [
   { id: "drumstick", label: "Frango" }, { id: "beef", label: "Carne" },
@@ -46,7 +47,7 @@ export default function Admin() {
   const { data: categories = [], refetch: refetchCategories } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: addons = [], refetch: refetchAddons } = useQuery({ queryKey: ['addons'], queryFn: fetchAddons });
   const { data: orders = [], refetch: refetchOrders } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders });
-  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons">("orders");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -114,6 +115,7 @@ export default function Admin() {
         accepts_pix: Boolean(storeSettings.accepts_pix) ? 1 : 0,
         accepts_cash: Boolean(storeSettings.accepts_cash) ? 1 : 0,
         accepts_card: Boolean(storeSettings.accepts_card) ? 1 : 0,
+        is_open: Boolean(storeSettings.is_open) ? 1 : 0,
         delivery_fee: Number(storeSettings.delivery_fee) || 0
       });
       alert("Configurações da loja salvas com sucesso!");
@@ -347,6 +349,7 @@ export default function Admin() {
           { key: "addons", label: "Adicionais", icon: ListPlus },
           { key: "promos", label: "Promoções", icon: Star },
           { key: "loyalty", label: "Fidelidade", icon: Award },
+          { key: "coupons", label: "Cupons", icon: Tag },
           { key: "settings", label: "Configurações", icon: Settings },
         ].map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => {
@@ -862,6 +865,22 @@ export default function Admin() {
             </div>
 
             <div className="space-y-4">
+              <h3 className="font-semibold text-foreground border-b border-border pb-2">Status da Loja</h3>
+              <label className="flex items-center gap-3 p-3 border border-border rounded-xl cursor-pointer hover:bg-muted/10 transition-colors font-medium text-foreground">
+                <input
+                  type="checkbox"
+                  checked={Boolean(storeSettings.is_open)}
+                  onChange={(e) => setStoreSettings({ ...storeSettings, is_open: e.target.checked ? 1 : 0 })}
+                  className="w-5 h-5 accent-primary rounded"
+                />
+                <div>
+                  <span className="block text-sm font-semibold text-foreground">Loja Aberta para Pedidos</span>
+                  <span className="text-xs text-muted-foreground font-normal">Se desmarcado, os clientes não poderão finalizar pedidos.</span>
+                </div>
+              </label>
+            </div>
+
+            <div className="space-y-4">
               <h3 className="font-semibold text-foreground border-b border-border pb-2">Canais de Consumo</h3>
               <div className="space-y-3">
                 <label className="flex items-center gap-3 p-3 border border-border rounded-xl cursor-pointer hover:bg-muted/10 transition-colors font-medium text-foreground">
@@ -985,6 +1004,13 @@ export default function Admin() {
             <button onClick={handleSaveStoreSettings} className="w-full bg-primary text-primary-foreground font-semibold py-3 flex items-center justify-center gap-2 rounded-xl mt-4">
               Salvar Configurações Gerais
             </button>
+          </div>
+        )}
+
+        {/* ── COUPONS TAB ── */}
+        {activeTab === "coupons" && (
+          <div className="bg-card rounded-xl shadow-card p-6 space-y-6">
+            <AdminCoupons />
           </div>
         )}
       </div>

@@ -390,6 +390,7 @@ export interface StoreSettings {
   closing_time: string;
   delivery_fee: number;
   delivery_info_text?: string;
+  is_open?: boolean | number;
 }
 
 export async function fetchStoreSettings(): Promise<StoreSettings> {
