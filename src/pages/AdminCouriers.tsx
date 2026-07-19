@@ -71,7 +71,7 @@ export default function AdminCouriers() {
         // Fallback
         let local = JSON.parse(localStorage.getItem('digitalmenu_users_v1') || '[]');
         if (editingId) {
-          local = local.map((u: any) => u.id === editingId ? { ...u, ...payload, password: payload.password || u.password } : u);
+          local = local.map((u: any) => String(u.id) === String(editingId) ? { ...u, ...payload, password: payload.password || u.password } : u);
         } else {
           local.push({ ...payload, id: Date.now() });
         }
@@ -93,7 +93,7 @@ export default function AdminCouriers() {
       } catch (e) {
         // Fallback
         let local = JSON.parse(localStorage.getItem('digitalmenu_users_v1') || '[]');
-        local = local.filter((u: any) => u.id !== id);
+        local = local.filter((u: any) => String(u.id) !== String(id));
         localStorage.setItem('digitalmenu_users_v1', JSON.stringify(local));
       }
       refetch();
