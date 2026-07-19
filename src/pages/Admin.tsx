@@ -436,6 +436,9 @@ export default function Admin() {
                             {order.changeNeededFor !== undefined && order.changeNeededFor !== null && order.changeNeededFor > 0 && (
                               <p>💵 **Troco para:** R$ {order.changeNeededFor.toFixed(2)} (Troco a levar: R$ {(order.changeNeededFor - order.total).toFixed(2)})</p>
                             )}
+                            {order.courierId && (
+                              <p className="text-purple-600 font-medium">📦 **Entregador:** {couriers.find((c: any) => c.id === order.courierId)?.name || "Desconhecido"}</p>
+                            )}
                           </div>
 
                           {/* Actions */}

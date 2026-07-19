@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LogOut, MapPin, Phone } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { API_URL } from '@/data/menuData';
 
 export default function Entregador() {
   const { user, logout, token } = useAuth();
@@ -19,10 +20,10 @@ export default function Entregador() {
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ['courier-orders'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:3000/api/orders');
+      const res = await fetch(`${API_URL}/orders`);
       if (!res.ok) throw new Error('Erro ao buscar pedidos');
       const allOrders = await res.json();
-      return allOrders.filter((o: any) => o.courierId === user?.id && o.status === 'Despachado');
+      return allOrders.filter((o: any) => o.courierId === user?.id && o.status === 'despachado');
     },
     refetchInterval: 10000,
     enabled: !!user
