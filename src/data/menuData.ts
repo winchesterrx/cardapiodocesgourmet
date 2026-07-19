@@ -71,7 +71,7 @@ export interface Category {
   icon: string;
 }
 
-export type OrderStatus = "recebido" | "confirmado" | "preparando" | "pronto" | "entregue" | "cancelado";
+export type OrderStatus = "recebido" | "confirmado" | "preparando" | "pronto" | "despachado" | "entregue" | "cancelado";
 
 export interface OrderTimeline {
   status: OrderStatus;

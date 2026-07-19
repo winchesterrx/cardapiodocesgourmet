@@ -52,8 +52,6 @@ export default function AdminReports() {
   // Filter orders
   const filteredOrders = useMemo(() => {
     return orders.filter(order => {
-      if (order.status === "cancelado") return false;
-      
       const orderDate = new Date(order.createdAt);
       if (orderDate < dateRange.start || orderDate > dateRange.end) return false;
 

@@ -5,8 +5,22 @@ import db from './db.js';
 
 import fs from 'fs';
 import path from 'path';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
+
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Acesso negado' });
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.status(403).json({ error: 'Token inválido' });
+    req.user = user;
+    next();
+  });
+};
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -468,7 +482,9 @@ app.get('/api/orders', async (req, res) => {
         changeNeededFor: o.change_needed_for ? Number(o.change_needed_for) : undefined,
         deliveryFee: o.delivery_fee ? Number(o.delivery_fee) : 0,
         couponId: o.coupon_id || null,
-        discountAmount: o.discount_amount ? Number(o.discount_amount) : 0
+        discountAmount: o.discount_amount ? Number(o.discount_amount) : 0,
+        courierId: o.courier_id || null,
+        origin: o.origin || 'delivery'
       };
     });
 
@@ -522,7 +538,7 @@ app.post('/api/orders', async (req, res) => {
     const { 
       id, number, consumeType, paymentMethod, address, mesa, 
       customerWhatsApp, customerCPF, status, total, items, timeline,
-      usedPoints, discountAmount, customerName, changeNeededFor, deliveryFee, couponId
+      usedPoints, discountAmount, customerName, changeNeededFor, deliveryFee, couponId, courierId, origin
     } = req.body;
 
     // Verificar se a loja está aberta
@@ -533,12 +549,12 @@ app.post('/api/orders', async (req, res) => {
     }
 
     const queryOrder = `
-      INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status, customer_name, change_needed_for, delivery_fee, coupon_id, discount_amount, created_at) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status, customer_name, change_needed_for, delivery_fee, coupon_id, discount_amount, courier_id, origin, created_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
     const now = new Date();
     await connection.query(queryOrder, [
-      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0, couponId || null, discountAmount || 0, now
+      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0, couponId || null, discountAmount || 0, courierId || null, origin || 'delivery', now
     ]);
 
     // Busca o order_number gerado pelo AUTO_INCREMENT
@@ -730,6 +746,88 @@ app.post('/api/coupons/validate', async (req, res) => {
     res.status(500).json({ error: 'Erro ao validar cupom' });
   }
 });
+
+// ── Users and Auth ──
+app.post('/api/auth/login', async (req, res) => {
+  const { phone, password } = req.body;
+  try {
+    const [rows] = await db.query('SELECT * FROM users WHERE phone = ?', [phone]);
+    const user = rows[0];
+    if (!user) return res.status(401).json({ error: 'Usuário não encontrado' });
+    
+    const validPassword = await bcrypt.compare(password, user.password);
+    if (!validPassword) return res.status(401).json({ error: 'Senha incorreta' });
+
+    const token = jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+    res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone: user.phone, delivery_fee: user.delivery_fee } });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro no login' });
+  }
+});
+
+app.get('/api/users', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await db.query('SELECT id, name, phone, role, delivery_fee, created_at FROM users ORDER BY created_at DESC');
+    res.json(rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao buscar usuários' });
+  }
+});
+
+app.post('/api/users', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Apenas admin pode criar usuários' });
+  const { name, phone, password, role, delivery_fee } = req.body;
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const [result] = await db.query(
+      'INSERT INTO users (name, phone, password, role, delivery_fee) VALUES (?, ?, ?, ?, ?)',
+      [name, phone, hashedPassword, role || 'courier', delivery_fee || 0]
+    );
+    res.status(201).json({ id: result.insertId, name, phone, role: role || 'courier', delivery_fee: delivery_fee || 0 });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Telefone já cadastrado' });
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao criar usuário' });
+  }
+});
+
+app.put('/api/users/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Apenas admin pode editar usuários' });
+  const { name, phone, password, role, delivery_fee } = req.body;
+  try {
+    if (password) {
+      const hashedPassword = await bcrypt.hash(password, 10);
+      await db.query(
+        'UPDATE users SET name=?, phone=?, password=?, role=?, delivery_fee=? WHERE id=?',
+        [name, phone, hashedPassword, role, delivery_fee, req.params.id]
+      );
+    } else {
+      await db.query(
+        'UPDATE users SET name=?, phone=?, role=?, delivery_fee=? WHERE id=?',
+        [name, phone, role, delivery_fee, req.params.id]
+      );
+    }
+    res.json({ message: 'Usuário atualizado com sucesso' });
+  } catch (error) {
+    if (error.code === 'ER_DUP_ENTRY') return res.status(400).json({ error: 'Telefone já cadastrado' });
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao atualizar usuário' });
+  }
+});
+
+app.delete('/api/users/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ error: 'Apenas admin pode excluir usuários' });
+  try {
+    await db.query('DELETE FROM users WHERE id = ?', [req.params.id]);
+    res.json({ message: 'Usuário excluído com sucesso' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao excluir usuário' });
+  }
+});
+
 
 const runMigrations = async () => {
   try {

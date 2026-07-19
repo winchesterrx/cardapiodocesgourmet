@@ -3,9 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import {
   LogIn, LogOut, Plus, Pencil, Trash2, BarChart3, Package, Star, Settings,
   ChevronLeft, LayoutGrid, ListPlus, ClipboardList, CheckCircle2, Clock,
-  Truck, XCircle, Printer, MessageCircle, Eye, Award, X, Tag
+  Truck, XCircle, Printer, MessageCircle, Eye, Award, X, Tag, Store, Users
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   getProducts, saveProducts, getCategories, saveCategories,
   getAddons, saveAddons, getOrders, updateOrderStatus,
@@ -15,6 +16,8 @@ import {
 import type { Product, Addon, Category, Order, OrderStatus, LoyaltySettings, StoreSettings } from "@/data/menuData";
 import AdminCoupons from "./AdminCoupons";
 import AdminReports from "./AdminReports";
+import AdminCouriers from "./AdminCouriers";
+import AdminPDV from "./AdminPDV";
 
 const availableIcons = [
   { id: "drumstick", label: "Frango" }, { id: "beef", label: "Carne" },
@@ -31,25 +34,29 @@ const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType
   confirmado: { label: "Confirmado", icon: CheckCircle2, color: "text-cyan-500 bg-cyan-500/10" },
   preparando: { label: "Preparando", icon: Clock, color: "text-amber-500 bg-amber-500/10" },
   pronto: { label: "Pronto", icon: Package, color: "text-emerald-500 bg-emerald-500/10" },
-  entregue: { label: "Entregue", icon: Truck, color: "text-muted-foreground bg-muted" },
+  despachado: { label: "Despachado", icon: Truck, color: "text-purple-500 bg-purple-500/10" },
+  entregue: { label: "Entregue", icon: CheckCircle2, color: "text-muted-foreground bg-muted" },
   cancelado: { label: "Cancelado", icon: XCircle, color: "text-destructive bg-destructive/10" },
 };
 
-const statusFlow: OrderStatus[] = ["recebido", "confirmado", "preparando", "pronto", "entregue"];
+const statusFlow: OrderStatus[] = ["recebido", "confirmado", "preparando", "pronto", "despachado", "entregue"];
 
 export default function Admin() {
   const navigate = useNavigate();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [user, setUser] = useState("");
-  const [pass, setPass] = useState("");
-  const [loginError, setLoginError] = useState("");
+  const { user, logout, token } = useAuth();
 
   const { data: products = [], refetch: refetchProducts } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
   const { data: categories = [], refetch: refetchCategories } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
+  const { data: couriers = [] } = useQuery({ queryKey: ['couriers'], queryFn: async () => {
+    const res = await fetch('http://localhost:3000/api/users');
+    if (!res.ok) return [];
+    const all = await res.json();
+    return all.filter((u: any) => u.role === 'courier');
+  }});
   const { data: addons = [], refetch: refetchAddons } = useQuery({ queryKey: ['addons'], queryFn: fetchAddons });
   const { data: orders = [], refetch: refetchOrders } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders });
   const { data: coupons = [] } = useQuery({ queryKey: ['coupons'], queryFn: fetchCoupons });
-  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons" | "reports">("orders");
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons" | "reports" | "couriers" | "pdv">("orders");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -124,14 +131,9 @@ export default function Admin() {
     }
   };
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (user === "admin" && pass === "123") {
-      setIsLoggedIn(true);
-      setLoginError("");
-    } else {
-      setLoginError("Usuário ou senha incorretos");
-    }
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
   };
 
   const handleBack = () => {
@@ -260,8 +262,8 @@ export default function Admin() {
   };
 
   // ── Order management ──
-  const handleUpdateOrderStatus = async (orderId: string, newStatus: OrderStatus) => {
-    await API.put(`/orders/${orderId}/status`, { status: newStatus });
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: OrderStatus, extraData?: any) => {
+    await API.put(`/orders/${orderId}/status`, { status: newStatus, ...extraData });
     await refetchOrders();
   };
 
@@ -312,31 +314,7 @@ export default function Admin() {
 
   const filteredOrders = orderFilter === "todos" ? orders : orders.filter((o) => o.status === orderFilter);
 
-  if (!isLoggedIn) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <form onSubmit={handleLogin} className="bg-card rounded-xl shadow-elevated p-8 w-full max-w-sm">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary text-primary-foreground rounded-lg p-2"><Settings size={24} /></div>
-              <h1 className="text-2xl font-display text-foreground">Admin</h1>
-            </div>
-            <button type="button" onClick={handleBack} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-              <ChevronLeft size={16} /> Voltar
-            </button>
-          </div>
-          <input value={user} onChange={(e) => setUser(e.target.value)} placeholder="Usuário"
-            className="w-full border border-border rounded-lg p-3 text-sm bg-background text-foreground mb-3 focus:outline-none focus:ring-2 focus:ring-ring" />
-          <input value={pass} onChange={(e) => setPass(e.target.value)} type="password" placeholder="Senha"
-            className="w-full border border-border rounded-lg p-3 text-sm bg-background text-foreground mb-3 focus:outline-none focus:ring-2 focus:ring-ring" />
-          {loginError && <p className="text-destructive text-sm mb-3">{loginError}</p>}
-          <button className="w-full bg-primary text-primary-foreground font-semibold py-3 rounded-lg flex items-center justify-center gap-2">
-            <LogIn size={18} /> Entrar
-          </button>
-        </form>
-      </div>
-    );
-  }
+  // Login block removed since route is protected by App.tsx
 
   return (
     <div className="min-h-screen bg-background">
@@ -345,7 +323,7 @@ export default function Admin() {
           <div className="bg-primary text-primary-foreground rounded-lg p-2"><Settings size={20} /></div>
           <h1 className="text-xl font-display text-foreground">Jessica Vanessa - Admin</h1>
         </div>
-        <button onClick={() => setIsLoggedIn(false)} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
+        <button onClick={handleLogout} className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-sm">
           <LogOut size={16} /> Sair
         </button>
       </header>
@@ -353,6 +331,8 @@ export default function Admin() {
       <div className="flex border-b border-border bg-card overflow-x-auto">
         {[
           { key: "orders", label: "Pedidos", icon: ClipboardList },
+          { key: "pdv", label: "PDV (Frente de Caixa)", icon: Store },
+          { key: "couriers", label: "Entregadores", icon: Users },
           { key: "products", label: "Produtos", icon: Package },
           { key: "categories", label: "Seções", icon: LayoutGrid },
           { key: "addons", label: "Adicionais", icon: ListPlus },
@@ -457,8 +437,26 @@ export default function Admin() {
                           </div>
 
                           {/* Actions */}
-                          <div className="flex flex-wrap gap-2">
-                            {nextStatus && (
+                          <div className="flex flex-wrap gap-2 items-center">
+                            {order.status === "pronto" ? (
+                              <div className="flex items-center gap-2 border border-border rounded-lg px-2 py-1 bg-muted/20">
+                                <span className="text-xs text-muted-foreground font-medium">Despachar com:</span>
+                                <select 
+                                  className="text-xs bg-transparent border-none focus:outline-none py-1 cursor-pointer"
+                                  onChange={(e) => {
+                                    if (e.target.value) {
+                                      handleUpdateOrderStatus(order.id, "despachado", { courierId: Number(e.target.value) });
+                                    }
+                                  }}
+                                  defaultValue=""
+                                >
+                                  <option value="" disabled>Selecione um entregador</option>
+                                  {couriers.map((c: any) => (
+                                    <option key={c.id} value={c.id}>{c.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            ) : nextStatus && (
                               <button onClick={() => handleUpdateOrderStatus(order.id, nextStatus)}
                                 className="bg-primary text-primary-foreground text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1">
                                 <CheckCircle2 size={14} /> {statusConfig[nextStatus].label}
@@ -1037,6 +1035,8 @@ export default function Admin() {
             <AdminReports />
           </div>
         )}
+        {activeTab === "couriers" && <AdminCouriers />}
+        {activeTab === "pdv" && <AdminPDV />}
       </div>
     </div>
   );
