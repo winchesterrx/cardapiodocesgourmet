@@ -4,8 +4,10 @@ import { Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminCouriers() {
+  const { token } = useAuth();
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [name, setName] = useState('');
@@ -17,7 +19,9 @@ export default function AdminCouriers() {
     queryKey: ['admin-couriers'],
     queryFn: async () => {
       try {
-        const res = await fetch('http://localhost:3000/api/users');
+        const res = await fetch('http://localhost:3000/api/users', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (!res.ok) throw new Error('Erro');
         const all = await res.json();
         return all.filter((u: any) => u.role === 'courier');
@@ -54,14 +58,20 @@ export default function AdminCouriers() {
         if (editingId) {
           const res = await fetch(`http://localhost:3000/api/users/${editingId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify(payload)
           });
           ok = res.ok;
         } else {
           const res = await fetch('http://localhost:3000/api/users', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify(payload)
           });
           ok = res.ok;
@@ -88,7 +98,10 @@ export default function AdminCouriers() {
   const handleDelete = async (id: number) => {
     if (confirm('Tem certeza que deseja excluir?')) {
       try {
-        const res = await fetch(`http://localhost:3000/api/users/${id}`, { method: 'DELETE' });
+        const res = await fetch(`http://localhost:3000/api/users/${id}`, { 
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
         if (!res.ok) throw new Error('API failed');
       } catch (e) {
         // Fallback

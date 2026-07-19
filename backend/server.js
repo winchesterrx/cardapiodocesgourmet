@@ -762,7 +762,7 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({ token, user: { id: user.id, name: user.name, role: user.role, phone: user.phone, delivery_fee: user.delivery_fee } });
   } catch (error) {
     console.error(error);
-    res.status(500).json({ error: 'Erro no login' });
+    res.status(500).json({ error: 'Erro no login', details: error.message });
   }
 });
 
