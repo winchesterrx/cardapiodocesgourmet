@@ -103,6 +103,9 @@ export interface Order {
   customerName?: string;
   changeNeededFor?: number;
   deliveryFee?: number;
+  courierId?: number | null;
+  courierName?: string | null;
+  origin?: 'delivery' | 'pdv';
 }
 
 // ── Categories ──

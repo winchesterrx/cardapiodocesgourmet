@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ClipboardList, Clock, CheckCircle2, ChevronLeft, Package, Truck, XCircle, Search, MapPin } from "lucide-react";
+import { ClipboardList, Clock, CheckCircle2, ChevronLeft, Package, Truck, XCircle, Search, MapPin, Bike } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/menu/BottomNav";
-import { getOrdersByLookup, fetchOrdersByLookup } from "@/data/menuData";
+import { fetchOrdersByLookup } from "@/data/menuData";
 import type { Order, OrderStatus } from "@/data/menuData";
 
 const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType; color: string }> = {
@@ -11,7 +11,7 @@ const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType
   confirmado: { label: "Confirmado", icon: CheckCircle2, color: "text-cyan-500 bg-cyan-500/10" },
   preparando: { label: "Preparando", icon: Clock, color: "text-amber-500 bg-amber-500/10" },
   pronto: { label: "Pronto", icon: Package, color: "text-emerald-500 bg-emerald-500/10" },
-  despachado: { label: "A Caminho", icon: MapPin, color: "text-purple-500 bg-purple-500/10" },
+  despachado: { label: "A Caminho", icon: Bike, color: "text-purple-500 bg-purple-500/10" },
   entregue: { label: "Entregue", icon: Truck, color: "text-muted-foreground bg-muted" },
   cancelado: { label: "Cancelado", icon: XCircle, color: "text-destructive bg-destructive/10" },
 };
@@ -45,6 +45,47 @@ export default function Pedidos() {
     enabled: cleanTerm.length >= 10 && cleanTerm.length <= 13,
     refetchInterval: 5000
   });
+
+  const prevOrdersRef = useRef<Order[]>([]);
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!orders || orders.length === 0) return;
+
+    let shouldNotify = false;
+    
+    orders.forEach(order => {
+      const prevOrder = prevOrdersRef.current.find(o => o.id === order.id);
+      if (prevOrder && prevOrder.status !== order.status) {
+        shouldNotify = true;
+        
+        // Push notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification("Atualização do Pedido", {
+            body: `Seu pedido #${order.number} agora está: ${statusConfig[order.status].label}`,
+            icon: "/favicon.ico"
+          });
+        }
+      }
+    });
+
+    if (shouldNotify) {
+      // Toca um som de notificação padrão do navegador usando AudioContext se não houver arquivo de som disponível
+      try {
+        const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+        audio.play().catch(e => console.log("Áudio bloqueado pelo navegador", e));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    prevOrdersRef.current = orders;
+  }, [orders]);
 
   const loadOrders = () => {
     if (cleanTerm.length >= 10 && cleanTerm.length <= 13) {
@@ -149,6 +190,27 @@ export default function Pedidos() {
                     <p>🛒 {order.consumeType} {order.address && `· ${order.address}`} {order.mesa && `· Mesa ${order.mesa}`}</p>
                     <p>💳 {order.paymentMethod}</p>
                   </div>
+
+                  {/* Courier Animation & Name */}
+                  {order.status === "despachado" && (
+                    <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 relative overflow-hidden">
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-100/50 to-transparent animate-shimmer -translate-x-full" />
+                      <div className="flex items-center gap-3 relative z-10">
+                        <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 animate-bounce">
+                          <Bike size={24} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-purple-800">Pedido a caminho!</p>
+                          {order.courierName && (
+                            <p className="text-xs text-purple-600 font-medium">Entregador: {order.courierName}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="absolute -bottom-2 -left-2 text-purple-200/50 opacity-20 transform -rotate-12 pointer-events-none">
+                        <Truck size={64} />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Timeline */}
                   <div>

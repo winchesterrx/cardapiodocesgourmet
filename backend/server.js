@@ -421,8 +421,13 @@ app.put('/api/store/settings', async (req, res) => {
 // ── Orders ──
 app.get('/api/orders', async (req, res) => {
   try {
-    const [orders] = await db.query('SELECT * FROM orders ORDER BY created_at DESC');
-    console.log(orders)
+    const [orders] = await db.query(`
+      SELECT o.*, u.name as courier_name 
+      FROM orders o
+      LEFT JOIN users u ON o.courier_id = u.id 
+      ORDER BY o.created_at DESC
+    `);
+    
     // Para simplificar no MVP, buscamos os itens de todos os pedidos recentes e montamos a árvore
     // Numa app real, usaríamos JOINs complexos ou carregaríamos itens por pedido.
     const orderIds = orders.map(o => o.id);
@@ -484,6 +489,7 @@ app.get('/api/orders', async (req, res) => {
         couponId: o.coupon_id || null,
         discountAmount: o.discount_amount ? Number(o.discount_amount) : 0,
         courierId: o.courier_id || null,
+        courierName: o.courier_name || null,
         origin: o.origin || 'delivery'
       };
     });
