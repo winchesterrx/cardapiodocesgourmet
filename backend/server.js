@@ -640,9 +640,13 @@ app.post('/api/orders', async (req, res) => {
 
 app.put('/api/orders/:id/status', async (req, res) => {
   const { id } = req.params;
-  const { status } = req.body;
+  const { status, courierId } = req.body;
   try {
-    await db.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    if (courierId) {
+      await db.query('UPDATE orders SET status = ?, courier_id = ? WHERE id = ?', [status, courierId, id]);
+    } else {
+      await db.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
+    }
     await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [id, status]);
     res.json({ message: 'Status atualizado com sucesso' });
   } catch (error) {
