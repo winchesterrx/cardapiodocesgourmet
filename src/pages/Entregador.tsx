@@ -23,7 +23,11 @@ export default function Entregador() {
       const res = await fetch(`${API_URL}/orders`);
       if (!res.ok) throw new Error('Erro ao buscar pedidos');
       const allOrders = await res.json();
-      return allOrders.filter((o: any) => o.courierId === user?.id && o.status === 'despachado');
+      return allOrders.filter((o: any) => {
+        const matchCourier = Number(o.courierId) === Number(user?.id);
+        const matchStatus = String(o.status).toLowerCase() === 'despachado';
+        return matchCourier && matchStatus;
+      });
     },
     refetchInterval: 10000,
     enabled: !!user
