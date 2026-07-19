@@ -731,6 +731,45 @@ app.post('/api/coupons/validate', async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Backend rodando na porta ${PORT}`);
+const runMigrations = async () => {
+  try {
+    console.log("Executando migrações automáticas de banco de dados no server.js...");
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS \`coupons\` (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`code\` VARCHAR(50) NOT NULL UNIQUE,
+        \`type\` ENUM('fixed', 'percentage', 'free_shipping') NOT NULL DEFAULT 'fixed',
+        \`value\` DECIMAL(10,2) DEFAULT 0.00,
+        \`is_active\` TINYINT DEFAULT 1,
+        \`usage_count\` INT DEFAULT 0,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    const alters = [
+      "ALTER TABLE `store_settings` ADD COLUMN `is_open` TINYINT DEFAULT 1",
+      "ALTER TABLE `orders` ADD COLUMN `coupon_id` INT DEFAULT NULL",
+      "ALTER TABLE `orders` ADD COLUMN `discount_amount` DECIMAL(10,2) DEFAULT 0.00",
+      "ALTER TABLE `coupons` ADD COLUMN `usage_count` INT DEFAULT 0"
+    ];
+
+    for (const q of alters) {
+      try {
+        await db.query(q);
+      } catch (e) {
+        if (e.code !== 'ER_DUP_FIELDNAME') {
+          console.error("Erro no alter table:", e);
+        }
+      }
+    }
+    console.log("Migrações concluídas!");
+  } catch (error) {
+    console.error("Erro fatal ao rodar migrações:", error);
+  }
+};
+
+runMigrations().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Backend rodando na porta ${PORT}`);
+  });
 });
