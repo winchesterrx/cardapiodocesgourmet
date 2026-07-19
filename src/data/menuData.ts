@@ -322,8 +322,8 @@ export async function fetchOrdersByLookup(term: string): Promise<Order[]> {
     const cleanTerm = term.replace(/\D/g, "");
     if (!cleanTerm) return [];
     return data.filter((o: Order) => {
-      const cleanCPF = o.customerCPF ? o.customerCPF.replace(/\D/g, "") : "";
-      const cleanWA = o.customerWhatsApp ? o.customerWhatsApp.replace(/\D/g, "") : "";
+      const cleanCPF = o.customerCPF ? String(o.customerCPF).replace(/\D/g, "") : "";
+      const cleanWA = o.customerWhatsApp ? String(o.customerWhatsApp).replace(/\D/g, "") : "";
       return (cleanCPF && cleanCPF === cleanTerm) || (cleanWA && (cleanWA.endsWith(cleanTerm) || cleanTerm.endsWith(cleanWA)));
     });
   } catch (error) {
