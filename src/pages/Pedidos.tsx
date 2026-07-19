@@ -39,7 +39,7 @@ export default function Pedidos() {
 
   const cleanTerm = searchTerm.replace(/\D/g, "");
 
-  const { data: orders = [] } = useQuery({
+  const { data: orders = [], refetch, isFetching } = useQuery({
     queryKey: ['orders', cleanTerm],
     queryFn: () => fetchOrdersByLookup(cleanTerm),
     enabled: cleanTerm.length >= 10 && cleanTerm.length <= 13,
@@ -49,6 +49,7 @@ export default function Pedidos() {
   const loadOrders = () => {
     if (cleanTerm.length >= 10 && cleanTerm.length <= 13) {
       localStorage.setItem("digitalmenu_customer_cpf", cleanTerm);
+      refetch();
     }
   };
 
@@ -78,18 +79,26 @@ export default function Pedidos() {
           <input
             value={formatInput(searchTerm)}
             onChange={(e) => setSearchTerm(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && loadOrders()}
             placeholder="CPF ou Celular/WhatsApp"
             className="flex-1 border border-border rounded-xl p-3 text-sm bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
           />
-          <button onClick={loadOrders} className="bg-primary text-primary-foreground px-4 rounded-xl">
-            <Search size={18} />
+          <button onClick={loadOrders} disabled={isFetching} className="bg-primary text-primary-foreground px-4 rounded-xl disabled:opacity-50">
+            {isFetching ? <Clock size={18} className="animate-spin" /> : <Search size={18} />}
           </button>
         </div>
       </div>
 
       {/* Orders */}
       <div className="px-4 mt-4 space-y-3">
-        {(orders || []).map((order) => {
+        {isFetching && orders.length === 0 && (
+          <div className="text-center py-16">
+            <Clock size={48} className="mx-auto text-muted-foreground/30 mb-3 animate-spin" />
+            <p className="text-muted-foreground">Buscando pedidos...</p>
+          </div>
+        )}
+        
+        {!isFetching && (orders || []).map((order) => {
           const st = statusConfig[order.status];
           const StatusIcon = st.icon;
           const isExpanded = expandedOrder === order.id;
@@ -190,7 +199,7 @@ export default function Pedidos() {
           );
         })}
 
-        {orders.length === 0 && (
+        {!isFetching && orders.length === 0 && (
           <div className="text-center py-16">
             <ClipboardList size={48} className="mx-auto text-muted-foreground/30 mb-3" />
             <p className="text-muted-foreground">
