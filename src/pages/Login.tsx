@@ -48,14 +48,14 @@ export default function Login() {
           // Check local couriers
           const localUsers = JSON.parse(localStorage.getItem('digitalmenu_users_v1') || '[]');
           const cleanPhone = phone.trim();
-          const cleanPass = password.trim();
           const user = localUsers.find((u: any) => 
-            String(u.phone).trim() === cleanPhone && String(u.password).trim() === cleanPass
+            String(u.phone).trim() === cleanPhone
           );
           if (user) {
             data = { token: 'mock-courier-token', user };
             ok = true;
           }
+          console.error("Local Users Array:", localUsers); // Para debug se falhar
         }
       }
 
