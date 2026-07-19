@@ -88,7 +88,7 @@ export default function Pedidos() {
 
       {/* Orders */}
       <div className="px-4 mt-4 space-y-3">
-        {orders.map((order) => {
+        {(orders || []).map((order) => {
           const st = statusConfig[order.status];
           const StatusIcon = st.icon;
           const isExpanded = expandedOrder === order.id;
@@ -110,7 +110,7 @@ export default function Pedidos() {
                   </span>
                 </div>
                 <p className="text-sm text-foreground">
-                  {order.items.map((i) => `${i.quantity}x ${i.productName}`).join(", ")}
+                  {(order.items || []).map((i) => `${i.quantity}x ${i.productName}`).join(", ")}
                 </p>
                 <p className="text-primary font-bold text-sm mt-1">R$ {order.total.toFixed(2)}</p>
               </button>
@@ -120,13 +120,13 @@ export default function Pedidos() {
                   {/* Items detail */}
                   <div>
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Itens</h4>
-                    {order.items.map((item, i) => (
+                    {(order.items || []).map((item, i) => (
                       <div key={i} className="text-sm text-foreground mb-1">
                         <span className="font-medium">{item.quantity}x {item.productName}</span>
                         <span className="text-muted-foreground ml-1">R$ {(item.productPrice * item.quantity).toFixed(2)}</span>
-                        {item.addons.length > 0 && (
+                        {(item.addons && item.addons.length > 0) && (
                           <p className="text-xs text-muted-foreground ml-4">
-                            + {item.addons.map((a) => `${a.quantity}x ${a.name}`).join(", ")}
+                            + {(item.addons || []).map((a) => `${a.quantity}x ${a.name}`).join(", ")}
                           </p>
                         )}
                         {item.notes && <p className="text-xs text-muted-foreground ml-4 italic">"{item.notes}"</p>}
@@ -145,7 +145,7 @@ export default function Pedidos() {
                     <h4 className="text-xs font-semibold text-muted-foreground uppercase mb-2">Linha do Tempo</h4>
                     <div className="space-y-0">
                       {timelineOrder.map((status, i) => {
-                        const entry = order.timeline.find((t) => t.status === status);
+                        const entry = (order.timeline || []).find((t) => t.status === status);
                         const isCurrent = order.status === status;
                         const isPast = entry !== undefined;
                         const isCancelled = order.status === "cancelado";
