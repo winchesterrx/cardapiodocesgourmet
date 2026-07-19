@@ -545,6 +545,10 @@ app.post('/api/orders', async (req, res) => {
     const [[insertedOrder]] = await connection.query('SELECT order_number FROM orders WHERE id = ?', [id]);
     const generatedOrderNumber = insertedOrder ? insertedOrder.order_number : 1;
 
+    if (couponId) {
+      await connection.query('UPDATE coupons SET usage_count = usage_count + 1 WHERE id = ?', [couponId]);
+    }
+
     // itens
     for (const item of items) {
       const queryItem = `

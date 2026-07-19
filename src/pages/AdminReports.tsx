@@ -17,13 +17,11 @@ export default function AdminReports() {
 
       const orderDate = new Date(order.createdAt);
       if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
+        const start = new Date(startDate + "T00:00:00");
         if (orderDate < start) return false;
       }
       if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
+        const end = new Date(endDate + "T23:59:59.999");
         if (orderDate > end) return false;
       }
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Minus, Plus, Trash2, MessageCircle, ChevronRight, ShoppingBag } from "lucide-react";
+import { X, Minus, Plus, Trash2, MessageCircle, ChevronRight, ShoppingBag, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useCart } from "@/contexts/CartContext";
 import { addOrder, getNextOrderNumber, addOrderAsync, fetchCustomerPoints, fetchLoyaltySettings, fetchStoreSettings, validateCoupon } from "@/data/menuData";
@@ -616,11 +616,21 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
               <div className="bg-muted/30 border border-border rounded-xl p-4 space-y-3">
                 <h3 className="text-sm font-semibold text-foreground">Cupom de Desconto</h3>
                 {appliedCoupon ? (
-                  <div className="flex items-center justify-between bg-primary/10 border border-primary/20 p-2.5 rounded-lg">
-                    <span className="text-sm font-bold text-primary">{appliedCoupon.code} aplicado</span>
-                    <button onClick={removeCoupon} className="text-destructive p-1 rounded-full hover:bg-destructive/10">
-                      <X size={16} />
-                    </button>
+                  <div className="flex flex-col gap-1 animate-in zoom-in-95 duration-300">
+                    <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 p-3 rounded-lg shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle2 size={18} className="text-emerald-500 animate-pulse" />
+                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">Cupom {appliedCoupon.code} aplicado!</span>
+                      </div>
+                      <button onClick={removeCoupon} className="text-destructive p-1.5 rounded-full hover:bg-destructive/10 transition-colors">
+                        <X size={16} />
+                      </button>
+                    </div>
+                    <span className="text-xs text-emerald-600/80 dark:text-emerald-400/80 font-medium px-1">
+                      {appliedCoupon.type === 'free_shipping' ? '✨ Frete grátis garantido!' : 
+                       appliedCoupon.type === 'percentage' ? `✨ Desconto de ${appliedCoupon.value}% no pedido!` : 
+                       `✨ R$ ${Number(appliedCoupon.value).toFixed(2)} de desconto!`}
+                    </span>
                   </div>
                 ) : (
                   <div className="flex gap-2">

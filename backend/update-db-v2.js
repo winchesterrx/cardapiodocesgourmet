@@ -12,6 +12,7 @@ async function run() {
         \`type\` ENUM('fixed', 'percentage', 'free_shipping') NOT NULL DEFAULT 'fixed',
         \`value\` DECIMAL(10,2) DEFAULT 0.00,
         \`is_active\` TINYINT DEFAULT 1,
+        \`usage_count\` INT DEFAULT 0,
         \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
@@ -40,6 +41,14 @@ async function run() {
       console.log("Coluna discount_amount adicionada em orders.");
     } catch (e) {
       if (e.code === 'ER_DUP_FIELDNAME') console.log("discount_amount já existe em orders.");
+      else throw e;
+    }
+
+    try {
+      await db.query(`ALTER TABLE \`coupons\` ADD COLUMN \`usage_count\` INT DEFAULT 0;`);
+      console.log("Coluna usage_count adicionada em coupons.");
+    } catch (e) {
+      if (e.code === 'ER_DUP_FIELDNAME') console.log("usage_count já existe em coupons.");
       else throw e;
     }
 
