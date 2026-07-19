@@ -5,6 +5,19 @@ import { useNavigate } from "react-router-dom";
 import BottomNav from "@/components/menu/BottomNav";
 import { fetchOrdersByLookup } from "@/data/menuData";
 import type { Order, OrderStatus } from "@/data/menuData";
+import { toast } from "sonner";
+
+// Helper para converter a VAPID key para o formato esperado
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 const statusConfig: Record<OrderStatus, { label: string; icon: React.ElementType; color: string }> = {
   recebido: { label: "Recebido", icon: ClipboardList, color: "text-blue-500 bg-blue-500/10" },
@@ -47,23 +60,35 @@ export default function Pedidos() {
   });
 
   const subscribeUserToPush = async (cpf: string) => {
-    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      console.log('Navegador não suporta Push Notifications');
+      return;
+    }
     
     try {
       const registration = await navigator.serviceWorker.register('/sw.js');
+      const publicVapidKey = 'BFpExTNFhdYa9CskEmUvJbJeeSCTkLosIbrLLeT6WhbB7vOMxrsG44heXSyd9Z5TLCYoImGgA0ceuBF_argmfKs';
+      
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: 'BFpExTNFhdYa9CskEmUvJbJeeSCTkLosIbrLLeT6WhbB7vOMxrsG44heXSyd9Z5TLCYoImGgA0ceuBF_argmfKs'
+        applicationServerKey: urlBase64ToUint8Array(publicVapidKey)
       });
       
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-      await fetch(`${API_URL}/push/subscribe`, {
+      const response = await fetch(`${API_URL}/push/subscribe`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ customerCpf: cpf, subscription })
       });
-    } catch (err) {
+      
+      if (response.ok) {
+        toast.success("Notificações em segundo plano ativadas!");
+      } else {
+        throw new Error("Erro do servidor ao salvar inscrição");
+      }
+    } catch (err: any) {
       console.error('Falha ao registrar Push Notification:', err);
+      toast.error(`Falha ao ativar notificações: ${err.message || "Erro desconhecido"}`);
     }
   };
 
@@ -72,17 +97,25 @@ export default function Pedidos() {
       localStorage.setItem("digitalmenu_customer_cpf", cleanTerm);
       refetch();
       // Solicita notificação (o navegador pede permissão se ainda não houver)
-      if (Notification.permission === 'default') {
-        const perm = await Notification.requestPermission();
-        if (perm === 'granted') subscribeUserToPush(cleanTerm);
-      } else if (Notification.permission === 'granted') {
-        subscribeUserToPush(cleanTerm);
+      if ('Notification' in window) {
+        try {
+          if (Notification.permission === 'default') {
+            const perm = await Notification.requestPermission();
+            if (perm === 'granted') subscribeUserToPush(cleanTerm);
+          } else if (Notification.permission === 'granted') {
+            subscribeUserToPush(cleanTerm);
+          } else {
+            toast.warning("As notificações estão bloqueadas no seu navegador.");
+          }
+        } catch (error) {
+          console.error("Erro ao pedir permissão de notificação:", error);
+        }
       }
     }
   };
 
   useEffect(() => {
-    if (cleanTerm.length >= 10 && Notification.permission === 'granted') {
+    if (cleanTerm.length >= 10 && 'Notification' in window && Notification.permission === 'granted') {
       subscribeUserToPush(cleanTerm);
     }
   }, [cleanTerm]);
