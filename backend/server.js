@@ -7,9 +7,17 @@ import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import webpush from 'web-push';
 
 dotenv.config();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretjwtkey';
+
+const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
+const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
+
+if (publicVapidKey && privateVapidKey) {
+  webpush.setVapidDetails('mailto:contato@exemplo.com', publicVapidKey, privateVapidKey);
+}
 
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -643,6 +651,32 @@ app.post('/api/orders', async (req, res) => {
     connection.release();
   }
 });
+app.post('/api/push/subscribe', async (req, res) => {
+  const { customerCpf, subscription } = req.body;
+  
+  if (!customerCpf || !subscription) {
+    return res.status(400).json({ error: 'Faltando CPF ou Inscrição' });
+  }
+
+  try {
+    await db.query(`
+      INSERT INTO push_subscriptions (customer_cpf, endpoint, p256dh, auth) 
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE endpoint = ?, p256dh = ?
+    `, [
+      customerCpf, 
+      subscription.endpoint, 
+      subscription.keys.p256dh, 
+      subscription.keys.auth,
+      subscription.endpoint, 
+      subscription.keys.p256dh
+    ]);
+    res.status(201).json({ message: 'Inscrição salva com sucesso' });
+  } catch (err) {
+    console.error('Erro ao salvar push subscription:', err);
+    res.status(500).json({ error: 'Erro interno ao salvar inscrição' });
+  }
+});
 
 app.put('/api/orders/:id/status', async (req, res) => {
   const { id } = req.params;
@@ -654,13 +688,56 @@ app.put('/api/orders/:id/status', async (req, res) => {
       await db.query('UPDATE orders SET status = ? WHERE id = ?', [status, id]);
     }
     await db.query('INSERT INTO order_timelines (order_id, status) VALUES (?, ?)', [id, status]);
+    
+    // Tenta disparar o web-push se configurado
+    if (publicVapidKey) {
+      try {
+        const [orderRows] = await db.query('SELECT customer_cpf, customer_whatsapp FROM orders WHERE id = ?', [id]);
+        if (orderRows.length > 0) {
+          const order = orderRows[0];
+          // O frontend usa a busca única pra salvar (que pode ser cpf ou whatsapp)
+          const searchKeys = [order.customer_cpf, order.customer_whatsapp].filter(Boolean);
+          
+          if (searchKeys.length > 0) {
+            const placeholders = searchKeys.map(() => '?').join(',');
+            const [subs] = await db.query(`SELECT * FROM push_subscriptions WHERE customer_cpf IN (${placeholders})`, searchKeys);
+            
+            for (const sub of subs) {
+              const pushSubscription = {
+                endpoint: sub.endpoint,
+                keys: { p256dh: sub.p256dh, auth: sub.auth }
+              };
+              
+              const payload = JSON.stringify({
+                title: 'Atualização do seu Pedido',
+                body: `Seu pedido passou para o status: ${status.toUpperCase()}`,
+                icon: '/icon-192x192.png', // Ajuste conforme ícone que você tem no PWA
+                badge: '/icon-192x192.png'
+              });
+
+              try {
+                await webpush.sendNotification(pushSubscription, payload);
+              } catch (pushErr) {
+                console.error('Erro ao enviar push pro endpoint:', sub.endpoint, pushErr);
+                // Pode deletar a sub se o erro for de expirado (410, 404)
+                if (pushErr.statusCode === 410 || pushErr.statusCode === 404) {
+                  await db.query('DELETE FROM push_subscriptions WHERE id = ?', [sub.id]);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Falha ao processar notificações push no update de status:', err);
+      }
+    }
+
     res.json({ message: 'Status atualizado com sucesso' });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Erro ao atualizar status' });
   }
 });
-
 // Auto-inicialização da tabela de store_settings
 const initDbSettings = async () => {
   try {

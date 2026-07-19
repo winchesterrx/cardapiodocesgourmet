@@ -46,12 +46,46 @@ export default function Pedidos() {
     refetchInterval: 5000
   });
 
-  const loadOrders = () => {
+  const subscribeUserToPush = async (cpf: string) => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js');
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: 'BFpExTNFhdYa9CskEmUvJbJeeSCTkLosIbrLLeT6WhbB7vOMxrsG44heXSyd9Z5TLCYoImGgA0ceuBF_argmfKs'
+      });
+      
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+      await fetch(`${API_URL}/push/subscribe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ customerCpf: cpf, subscription })
+      });
+    } catch (err) {
+      console.error('Falha ao registrar Push Notification:', err);
+    }
+  };
+
+  const loadOrders = async () => {
     if (cleanTerm.length >= 10 && cleanTerm.length <= 13) {
       localStorage.setItem("digitalmenu_customer_cpf", cleanTerm);
       refetch();
+      // Solicita notificação (o navegador pede permissão se ainda não houver)
+      if (Notification.permission === 'default') {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted') subscribeUserToPush(cleanTerm);
+      } else if (Notification.permission === 'granted') {
+        subscribeUserToPush(cleanTerm);
+      }
     }
   };
+
+  useEffect(() => {
+    if (cleanTerm.length >= 10 && Notification.permission === 'granted') {
+      subscribeUserToPush(cleanTerm);
+    }
+  }, [cleanTerm]);
 
   const formatDate = (iso: string) => {
     const d = new Date(iso);

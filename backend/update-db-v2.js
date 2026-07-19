@@ -52,6 +52,20 @@ async function run() {
       else throw e;
     }
 
+    // 4. Criar tabela push_subscriptions
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS \`push_subscriptions\` (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`customer_cpf\` VARCHAR(20) NOT NULL,
+        \`endpoint\` TEXT NOT NULL,
+        \`p256dh\` VARCHAR(150) NOT NULL,
+        \`auth\` VARCHAR(100) NOT NULL,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY (\`customer_cpf\`, \`auth\`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+    console.log("Tabela push_subscriptions verificada/criada.");
+
     console.log("Migração V2 concluída com sucesso!");
     process.exit(0);
   } catch (error) {
