@@ -66,7 +66,8 @@ export default function Pedidos() {
     }
     
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.register('/sw.js');
+      const registration = await navigator.serviceWorker.ready;
       const publicVapidKey = 'BFpExTNFhdYa9CskEmUvJbJeeSCTkLosIbrLLeT6WhbB7vOMxrsG44heXSyd9Z5TLCYoImGgA0ceuBF_argmfKs';
       
       const subscription = await registration.pushManager.subscribe({
