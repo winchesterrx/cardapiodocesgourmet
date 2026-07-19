@@ -638,12 +638,12 @@ export default function CheckoutModal({ isOpen, onClose }: Props) {
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                       placeholder="Ex: PROMO10"
-                      className="flex-1 border border-border rounded-xl p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                      className="flex-1 min-w-0 border border-border rounded-xl p-2.5 text-sm bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                     />
                     <button
                       onClick={handleApplyCoupon}
                       disabled={validatingCoupon}
-                      className="bg-primary text-primary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50"
+                      className="shrink-0 bg-primary text-primary-foreground px-4 rounded-xl font-medium text-sm hover:opacity-90 disabled:opacity-50"
                     >
                       {validatingCoupon ? "Validando..." : "Aplicar"}
                     </button>
