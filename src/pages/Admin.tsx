@@ -48,7 +48,9 @@ export default function Admin() {
   const { data: products = [], refetch: refetchProducts } = useQuery({ queryKey: ['products'], queryFn: fetchProducts });
   const { data: categories = [], refetch: refetchCategories } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: couriers = [] } = useQuery({ queryKey: ['couriers'], queryFn: async () => {
-    const res = await fetch('http://localhost:3000/api/users');
+    const res = await fetch('http://localhost:3000/api/users', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
     if (!res.ok) return [];
     const all = await res.json();
     return all.filter((u: any) => u.role === 'courier');
