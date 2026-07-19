@@ -98,7 +98,7 @@ export default function Pedidos() {
           </div>
         )}
         
-        {!isFetching && (orders || []).map((order) => {
+        {(orders || []).map((order) => {
           const st = statusConfig[order.status];
           const StatusIcon = st.icon;
           const isExpanded = expandedOrder === order.id;
