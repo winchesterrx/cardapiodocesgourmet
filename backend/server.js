@@ -833,6 +833,18 @@ const runMigrations = async () => {
   try {
     console.log("Executando migrações automáticas de banco de dados no server.js...");
     await db.query(`
+      CREATE TABLE IF NOT EXISTS \`users\` (
+        \`id\` INT AUTO_INCREMENT PRIMARY KEY,
+        \`name\` VARCHAR(100) NOT NULL,
+        \`phone\` VARCHAR(50) NOT NULL UNIQUE,
+        \`password\` VARCHAR(255) NOT NULL,
+        \`role\` VARCHAR(20) DEFAULT 'courier',
+        \`delivery_fee\` DECIMAL(10,2) DEFAULT 0.00,
+        \`created_at\` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
+    await db.query(`
       CREATE TABLE IF NOT EXISTS \`coupons\` (
         \`id\` INT AUTO_INCREMENT PRIMARY KEY,
         \`code\` VARCHAR(50) NOT NULL UNIQUE,
@@ -860,6 +872,19 @@ const runMigrations = async () => {
         }
       }
     }
+
+    // Seed default admin se não houver admin
+    const [adminCheck] = await db.query("SELECT * FROM users WHERE phone = 'admin'");
+    if (adminCheck.length === 0) {
+      const bcrypt = await import('bcrypt');
+      const hashed = await bcrypt.hash('123', 10);
+      await db.query(
+        "INSERT INTO users (name, phone, password, role) VALUES ('Admin', 'admin', ?, 'admin')",
+        [hashed]
+      );
+      console.log("Usuário admin padrão criado (admin / 123)");
+    }
+
     console.log("Migrações concluídas!");
   } catch (error) {
     console.error("Erro fatal ao rodar migrações:", error);
