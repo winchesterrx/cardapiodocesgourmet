@@ -62,7 +62,7 @@ export default function Entregador() {
               <CardTitle className="text-sm text-gray-500">Taxa por Entrega</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">R$ {user.delivery_fee.toFixed(2)}</p>
+              <p className="text-2xl font-bold">R$ {Number(user.delivery_fee).toFixed(2)}</p>
             </CardContent>
           </Card>
         </div>
@@ -89,11 +89,11 @@ export default function Entregador() {
                     </span>
                   </div>
                   <p className="text-sm font-medium">Cliente: {order.customerName || 'Não informado'}</p>
-                  <p className="text-sm font-bold text-green-600">Total: R$ {order.total.toFixed(2)}</p>
+                  <p className="text-sm font-bold text-green-600">Total: R$ {Number(order.total).toFixed(2)}</p>
                   {order.changeNeededFor && (
-                    <p className="text-xs text-orange-600 font-medium">
-                      Levar troco para R$ {order.changeNeededFor.toFixed(2)}
-                    </p>
+                    <div className="mt-2 text-sm font-medium bg-amber-50 p-2 rounded border border-amber-200 text-amber-800">
+                      Levar troco para R$ {Number(order.changeNeededFor).toFixed(2)}
+                    </div>
                   )}
                 </CardHeader>
                 <CardContent className="space-y-3">
