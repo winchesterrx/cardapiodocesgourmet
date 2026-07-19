@@ -418,3 +418,44 @@ export async function fetchStoreSettings(): Promise<StoreSettings> {
 export async function saveStoreSettings(settings: StoreSettings) {
   return API.put('/store/settings', settings);
 }
+
+// ── Coupons ──
+export interface Coupon {
+  id: string;
+  code: string;
+  type: "fixed" | "percentage" | "free_shipping";
+  value: number;
+  is_active: boolean | number;
+}
+
+export async function fetchCoupons(): Promise<Coupon[]> {
+  try {
+    const res = await fetch(`${API_URL}/coupons`);
+    if (!res.ok) throw new Error('Falha ao buscar cupons');
+    return await res.json();
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+}
+
+export async function validateCoupon(code: string): Promise<Coupon | null> {
+  try {
+    const res = await API.post('/coupons/validate', { code });
+    return await res.json();
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+}
+
+export async function saveCoupon(coupon: any) {
+  if (coupon.id) {
+    return API.put(`/coupons/${coupon.id}`, coupon);
+  }
+  return API.post('/coupons', coupon);
+}
+
+export async function deleteCoupon(id: string) {
+  return API.del(`/coupons/${id}`);
+}
