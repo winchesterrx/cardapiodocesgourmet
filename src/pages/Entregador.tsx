@@ -4,12 +4,30 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { LogOut, MapPin, Phone } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { API_URL } from '@/data/menuData';
 
 export default function Entregador() {
   const { user, logout, token } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const handleMarkAsDelivered = async (orderId: string) => {
+    try {
+      const res = await fetch(`${API_URL}/orders/${orderId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({ status: 'entregue' })
+      });
+      if (res.ok) {
+        queryClient.invalidateQueries({ queryKey: ['courier-orders'] });
+      } else {
+        alert("Erro ao marcar como entregue. Tente novamente.");
+      }
+    } catch (err) {
+      alert("Erro de conexão.");
+    }
+  };
 
   useEffect(() => {
     if (!user || user.role !== 'courier') {
@@ -182,6 +200,12 @@ export default function Entregador() {
                           </Button>
                         )}
                       </div>
+                      <Button 
+                        className="w-full mt-2 bg-primary hover:bg-primary/90 text-white font-bold py-6"
+                        onClick={() => handleMarkAsDelivered(order.id)}
+                      >
+                        ✓ Marcar como Entregue
+                      </Button>
                     </CardContent>
                   </Card>
                 ))}
