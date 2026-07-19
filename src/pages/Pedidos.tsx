@@ -46,47 +46,6 @@ export default function Pedidos() {
     refetchInterval: 5000
   });
 
-  const prevOrdersRef = useRef<Order[]>([]);
-
-  useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!orders || orders.length === 0) return;
-
-    let shouldNotify = false;
-    
-    orders.forEach(order => {
-      const prevOrder = prevOrdersRef.current.find(o => o.id === order.id);
-      if (prevOrder && prevOrder.status !== order.status) {
-        shouldNotify = true;
-        
-        // Push notification
-        if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification("Atualização do Pedido", {
-            body: `Seu pedido #${order.number} agora está: ${statusConfig[order.status].label}`,
-            icon: "/favicon.ico"
-          });
-        }
-      }
-    });
-
-    if (shouldNotify) {
-      // Toca um som de notificação padrão do navegador usando AudioContext se não houver arquivo de som disponível
-      try {
-        const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
-        audio.play().catch(e => console.log("Áudio bloqueado pelo navegador", e));
-      } catch (e) {
-        console.error(e);
-      }
-    }
-
-    prevOrdersRef.current = orders;
-  }, [orders]);
-
   const loadOrders = () => {
     if (cleanTerm.length >= 10 && cleanTerm.length <= 13) {
       localStorage.setItem("digitalmenu_customer_cpf", cleanTerm);

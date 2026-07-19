@@ -2,7 +2,8 @@ import { Home, ClipboardList, Award, Settings } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { fetchOrdersByLookup } from "@/data/menuData";
-import { useState, useEffect } from "react";
+import type { Order, OrderStatus } from "@/data/menuData";
+import { useState, useEffect, useRef } from "react";
 
 const navItems = [
   { icon: Home, label: "Início", path: "/" },
@@ -10,6 +11,16 @@ const navItems = [
   { icon: Award, label: "Fidelidade", path: "/fidelidade" },
   { icon: Settings, label: "Admin", path: "/admin" },
 ];
+
+const statusLabels: Record<OrderStatus, string> = {
+  recebido: "Recebido",
+  confirmado: "Confirmado",
+  preparando: "Preparando",
+  pronto: "Pronto",
+  despachado: "A Caminho",
+  entregue: "Entregue",
+  cancelado: "Cancelado",
+};
 
 export default function BottomNav() {
   const location = useLocation();
@@ -34,10 +45,53 @@ export default function BottomNav() {
     queryKey: ['orders-badge', customerCpf],
     queryFn: () => fetchOrdersByLookup(customerCpf),
     enabled: customerCpf.length >= 10,
-    refetchInterval: 10000 // A cada 10 segundos para não sobrecarregar
+    refetchInterval: 5000 // A cada 5 segundos para notificações mais rápidas
   });
 
-  const hasActiveOrder = orders.some(o => o.status !== 'entregue' && o.status !== 'cancelado');
+  const prevOrdersRef = useRef<Order[]>([]);
+
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!orders || orders.length === 0) return;
+
+    let shouldNotify = false;
+    
+    orders.forEach(order => {
+      const prevOrder = prevOrdersRef.current.find(o => o.id === order.id);
+      // Notifica apenas se o pedido já existia antes e o status mudou.
+      if (prevOrder && prevOrder.status !== order.status) {
+        shouldNotify = true;
+        
+        // Push notification
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification("Atualização do Pedido", {
+            body: `Seu pedido #${order.number} agora está: ${statusLabels[order.status]}`,
+            icon: "/favicon.ico"
+          });
+        }
+      }
+    });
+
+    if (shouldNotify) {
+      // Toca um som de notificação padrão do navegador
+      try {
+        const audio = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+        audio.play().catch(e => console.log("Áudio bloqueado pelo navegador", e));
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    prevOrdersRef.current = orders;
+  }, [orders]);
+
+  // Bolinha vermelha só deve aparecer se o status já passou de recebido, e ainda não foi entregue nem cancelado
+  const hasActiveOrder = orders.some(o => o.status !== 'recebido' && o.status !== 'entregue' && o.status !== 'cancelado');
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border shadow-elevated safe-area-bottom pointer-events-auto lg:hidden h-[70px]">
