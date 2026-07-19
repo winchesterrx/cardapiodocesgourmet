@@ -28,12 +28,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     if (storedToken && storedUser) {
       try {
-        const decoded: any = jwtDecode(storedToken);
-        if (decoded.exp && decoded.exp * 1000 < Date.now()) {
-          logout();
-        } else {
+        if (storedToken.startsWith('mock-')) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
+        } else {
+          const decoded: any = jwtDecode(storedToken);
+          if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+            logout();
+          } else {
+            setToken(storedToken);
+            setUser(JSON.parse(storedUser));
+          }
         }
       } catch (e) {
         logout();

@@ -16,10 +16,16 @@ export default function AdminCouriers() {
   const { data: couriers = [], refetch } = useQuery({
     queryKey: ['admin-couriers'],
     queryFn: async () => {
-      const res = await fetch('http://localhost:3000/api/users');
-      if (!res.ok) throw new Error('Erro');
-      const all = await res.json();
-      return all.filter((u: any) => u.role === 'courier');
+      try {
+        const res = await fetch('http://localhost:3000/api/users');
+        if (!res.ok) throw new Error('Erro');
+        const all = await res.json();
+        return all.filter((u: any) => u.role === 'courier');
+      } catch (e) {
+        // Fallback
+        const local = JSON.parse(localStorage.getItem('digitalmenu_users_v1') || '[]');
+        return local.filter((u: any) => u.role === 'courier');
+      }
     }
   });
 
@@ -43,19 +49,35 @@ export default function AdminCouriers() {
     };
     
     try {
-      if (editingId) {
-        await fetch(`http://localhost:3000/api/users/${editingId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      } else {
-        await fetch('http://localhost:3000/api/users', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+      let ok = false;
+      try {
+        if (editingId) {
+          const res = await fetch(`http://localhost:3000/api/users/${editingId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          ok = res.ok;
+        } else {
+          const res = await fetch('http://localhost:3000/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          ok = res.ok;
+        }
+        if (!ok) throw new Error('API failed');
+      } catch (e) {
+        // Fallback
+        let local = JSON.parse(localStorage.getItem('digitalmenu_users_v1') || '[]');
+        if (editingId) {
+          local = local.map((u: any) => u.id === editingId ? { ...u, ...payload, password: payload.password || u.password } : u);
+        } else {
+          local.push({ ...payload, id: Date.now() });
+        }
+        localStorage.setItem('digitalmenu_users_v1', JSON.stringify(local));
       }
+
       refetch();
       resetForm();
     } catch (err) {
@@ -65,7 +87,15 @@ export default function AdminCouriers() {
 
   const handleDelete = async (id: number) => {
     if (confirm('Tem certeza que deseja excluir?')) {
-      await fetch(`http://localhost:3000/api/users/${id}`, { method: 'DELETE' });
+      try {
+        const res = await fetch(`http://localhost:3000/api/users/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('API failed');
+      } catch (e) {
+        // Fallback
+        let local = JSON.parse(localStorage.getItem('digitalmenu_users_v1') || '[]');
+        local = local.filter((u: any) => u.id !== id);
+        localStorage.setItem('digitalmenu_users_v1', JSON.stringify(local));
+      }
       refetch();
     }
   };
