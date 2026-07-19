@@ -692,7 +692,7 @@ app.put('/api/orders/:id/status', async (req, res) => {
     // Tenta disparar o web-push se configurado
     if (publicVapidKey) {
       try {
-        const [orderRows] = await db.query('SELECT customer_cpf, customer_whatsapp FROM orders WHERE id = ?', [id]);
+        const [orderRows] = await db.query('SELECT customer_cpf, customer_whatsapp, driver_name FROM orders WHERE id = ?', [id]);
         if (orderRows.length > 0) {
           const order = orderRows[0];
           // O frontend usa a busca única pra salvar (que pode ser cpf ou whatsapp)
@@ -708,10 +708,23 @@ app.put('/api/orders/:id/status', async (req, res) => {
                 keys: { p256dh: sub.p256dh, auth: sub.auth }
               };
               
+              let bodyText = `Seu pedido passou para o status: ${status.toUpperCase()}`;
+              if (status === 'recebido') bodyText = 'Oba! Recebemos o seu pedido e já vamos prepará-lo. 😋';
+              if (status === 'preparando') bodyText = 'Hummm... Seu pedido está sendo preparado com muito carinho! 🧑‍🍳';
+              if (status === 'pronto') bodyText = 'Tudo pronto! Seu pedido está prontinho e embalado. 🛍️';
+              if (status === 'despachado') {
+                if (order.driver_name) {
+                  bodyText = `O entregador ${order.driver_name} acabou de sair com o seu pedido! Está a caminho. 🛵`;
+                } else {
+                  bodyText = 'Seu pedido acabou de sair para entrega! Está a caminho. 🛵';
+                }
+              }
+              if (status === 'entregue') bodyText = 'Pedido entregue! Aproveite seu doce e volte sempre! ❤️';
+              
               const payload = JSON.stringify({
                 title: 'Atualização do seu Pedido',
-                body: `Seu pedido passou para o status: ${status.toUpperCase()}`,
-                icon: '/icon-192x192.png', // Ajuste conforme ícone que você tem no PWA
+                body: bodyText,
+                icon: '/icon-192x192.png',
                 badge: '/icon-192x192.png'
               });
 
