@@ -130,6 +130,10 @@ export default function AdminCoupons() {
                   {coupon.type === 'fixed' && `Desconto de R$ ${Number(coupon.value).toFixed(2)}`}
                   {coupon.type === 'percentage' && `Desconto de ${Number(coupon.value)}%`}
                   {coupon.type === 'free_shipping' && `Frete Grátis`}
+                  <div className="mt-2 flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                    <Tag size={12} />
+                    Usado {coupon.usage_count || 0} vez(es)
+                  </div>
                 </div>
               </div>
               <div className="flex justify-end gap-2 border-t border-border pt-3">

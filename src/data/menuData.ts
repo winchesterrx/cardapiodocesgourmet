@@ -421,11 +421,13 @@ export async function saveStoreSettings(settings: StoreSettings) {
 
 // ── Coupons ──
 export interface Coupon {
-  id: string;
+  id?: number;
   code: string;
-  type: "fixed" | "percentage" | "free_shipping";
-  value: number;
+  type: "Frete" | "Valor" | "Porcentagem";
+  value?: number;
   is_active: boolean | number;
+  created_at?: string;
+  usage_count?: number;
 }
 
 export async function fetchCoupons(): Promise<Coupon[]> {
