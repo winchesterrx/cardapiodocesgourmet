@@ -479,6 +479,40 @@ app.get('/api/orders', async (req, res) => {
   }
 });
 
+app.delete('/api/orders/:id', async (req, res) => {
+  const connection = await db.getConnection();
+  try {
+    await connection.beginTransaction();
+    const orderId = req.params.id;
+    
+    // Deletar addons
+    const [items] = await connection.query('SELECT id FROM order_items WHERE order_id = ?', [orderId]);
+    const itemIds = items.map(i => i.id);
+    if (itemIds.length > 0) {
+      const placeholders = itemIds.map(() => '?').join(',');
+      await connection.query(`DELETE FROM order_item_addons WHERE order_item_id IN (${placeholders})`, itemIds);
+    }
+    
+    // Deletar itens
+    await connection.query('DELETE FROM order_items WHERE order_id = ?', [orderId]);
+    
+    // Deletar timelines
+    await connection.query('DELETE FROM order_timelines WHERE order_id = ?', [orderId]);
+    
+    // Deletar pedido
+    await connection.query('DELETE FROM orders WHERE id = ?', [orderId]);
+    
+    await connection.commit();
+    res.json({ message: 'Pedido excluído com sucesso' });
+  } catch (error) {
+    await connection.rollback();
+    console.error(error);
+    res.status(500).json({ error: 'Erro ao excluir pedido' });
+  } finally {
+    connection.release();
+  }
+});
+
 app.post('/api/orders', async (req, res) => {
   const connection = await db.getConnection();
   try {
@@ -499,11 +533,12 @@ app.post('/api/orders', async (req, res) => {
     }
 
     const queryOrder = `
-      INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status, customer_name, change_needed_for, delivery_fee, coupon_id, discount_amount) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO orders (id, total, consume_type, payment_method, address, mesa, customer_whatsapp, customer_cpf, status, customer_name, change_needed_for, delivery_fee, coupon_id, discount_amount, created_at) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
+    const now = new Date();
     await connection.query(queryOrder, [
-      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0, couponId || null, discountAmount || 0
+      id, total, consumeType, paymentMethod, address || null, mesa || null, customerWhatsApp, customerCPF || null, status, customerName || null, changeNeededFor || null, deliveryFee || 0, couponId || null, discountAmount || 0, now
     ]);
 
     // Busca o order_number gerado pelo AUTO_INCREMENT

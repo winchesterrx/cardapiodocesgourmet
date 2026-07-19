@@ -10,10 +10,11 @@ import {
   getProducts, saveProducts, getCategories, saveCategories,
   getAddons, saveAddons, getOrders, updateOrderStatus,
   fetchProducts, fetchCategories, fetchAddons, fetchOrders, API,
-  fetchLoyaltySettings, saveLoyaltySettings, fetchStoreSettings, saveStoreSettings
+  fetchLoyaltySettings, saveLoyaltySettings, fetchStoreSettings, saveStoreSettings, fetchCoupons
 } from "@/data/menuData";
 import type { Product, Addon, Category, Order, OrderStatus, LoyaltySettings, StoreSettings } from "@/data/menuData";
 import AdminCoupons from "./AdminCoupons";
+import AdminReports from "./AdminReports";
 
 const availableIcons = [
   { id: "drumstick", label: "Frango" }, { id: "beef", label: "Carne" },
@@ -47,7 +48,8 @@ export default function Admin() {
   const { data: categories = [], refetch: refetchCategories } = useQuery({ queryKey: ['categories'], queryFn: fetchCategories });
   const { data: addons = [], refetch: refetchAddons } = useQuery({ queryKey: ['addons'], queryFn: fetchAddons });
   const { data: orders = [], refetch: refetchOrders } = useQuery({ queryKey: ['orders'], queryFn: fetchOrders });
-  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons">("orders");
+  const { data: coupons = [] } = useQuery({ queryKey: ['coupons'], queryFn: fetchCoupons });
+  const [activeTab, setActiveTab] = useState<"orders" | "products" | "categories" | "addons" | "promos" | "loyalty" | "settings" | "coupons" | "reports">("orders");
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
@@ -263,6 +265,13 @@ export default function Admin() {
     await refetchOrders();
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (window.confirm("Tem certeza que deseja excluir este pedido permanentemente? Esta ação não pode ser desfeita.")) {
+      await API.del(`/orders/${orderId}`);
+      await refetchOrders();
+    }
+  };
+
   const handleSendConfirmation = (order: Order) => {
     const message = encodeURIComponent(
       `✅ *Pedido #${order.number} Confirmado!*\n\nOlá! Seu pedido foi aceito e está sendo preparado.\n\n📋 Itens:\n${order.items.map((i) => `• ${i.quantity}x ${i.productName}`).join("\n")}\n\n💰 Total: R$ ${order.total.toFixed(2)}\n\nObrigado pela preferência! 🍔`
@@ -350,6 +359,7 @@ export default function Admin() {
           { key: "promos", label: "Promoções", icon: Star },
           { key: "loyalty", label: "Fidelidade", icon: Award },
           { key: "coupons", label: "Cupons", icon: Tag },
+          { key: "reports", label: "Relatórios", icon: BarChart3 },
           { key: "settings", label: "Configurações", icon: Settings },
         ].map(({ key, label, icon: Icon }) => (
           <button key={key} onClick={() => {
@@ -438,6 +448,9 @@ export default function Admin() {
                             <p>💳 **Pagamento:** {order.paymentMethod}</p>
                             {order.customerCPF && <p>🪪 **CPF:** {order.customerCPF}</p>}
                             {order.deliveryFee > 0 && <p>🛵 **Taxa de Entrega:** R$ {order.deliveryFee.toFixed(2)}</p>}
+                            {order.couponId && (
+                              <p>🏷️ **Cupom Usado:** {coupons.find(c => c.id === order.couponId)?.code || order.couponId} (Desconto: R$ {order.discountAmount?.toFixed(2) || '0.00'})</p>
+                            )}
                             {order.changeNeededFor !== undefined && order.changeNeededFor !== null && order.changeNeededFor > 0 && (
                               <p>💵 **Troco para:** R$ {order.changeNeededFor.toFixed(2)} (Troco a levar: R$ {(order.changeNeededFor - order.total).toFixed(2)})</p>
                             )}
@@ -467,6 +480,10 @@ export default function Admin() {
                                 <XCircle size={14} /> Cancelar
                               </button>
                             )}
+                            <button onClick={() => handleDeleteOrder(order.id)}
+                              className="bg-red-500/10 text-red-600 hover:bg-red-500/20 text-xs font-medium px-4 py-2 rounded-lg flex items-center gap-1 ml-auto">
+                              <Trash2 size={14} /> Excluir
+                            </button>
                           </div>
                         </div>
                       )}
@@ -1011,6 +1028,13 @@ export default function Admin() {
         {activeTab === "coupons" && (
           <div className="bg-card rounded-xl shadow-card p-6 space-y-6">
             <AdminCoupons />
+          </div>
+        )}
+
+        {/* ── REPORTS TAB ── */}
+        {activeTab === "reports" && (
+          <div className="bg-card rounded-xl shadow-card p-6 space-y-6">
+            <AdminReports />
           </div>
         )}
       </div>
