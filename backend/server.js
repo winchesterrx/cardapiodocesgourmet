@@ -692,7 +692,12 @@ app.put('/api/orders/:id/status', async (req, res) => {
     // Tenta disparar o web-push se configurado
     if (publicVapidKey) {
       try {
-        const [orderRows] = await db.query('SELECT customer_cpf, customer_whatsapp, driver_name FROM orders WHERE id = ?', [id]);
+        const [orderRows] = await db.query(`
+          SELECT o.customer_cpf, o.customer_whatsapp, u.name as driver_name 
+          FROM orders o 
+          LEFT JOIN users u ON o.courier_id = u.id 
+          WHERE o.id = ?
+        `, [id]);
         if (orderRows.length > 0) {
           const order = orderRows[0];
           // O frontend usa a busca única pra salvar (que pode ser cpf ou whatsapp)
